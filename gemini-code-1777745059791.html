@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PRIME FRETE - FULL SYSTEM</title>
+    
+    <!-- Bibliotecas e Ícones -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #800020; /* Vinho Primecoat */
+            --bg: #f4f7f6;
+            --card: #ffffff;
+            --input-focus: #fff5f7;
+            --text: #2c3e50;
+            --gray: #95a5a6;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --transition: all 0.3s ease;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        
+        body { background-color: var(--bg); color: var(--text); font-size: 11px; overflow-x: hidden; }
+        
+        /* Tipografia */
+        .bold-upper { font-weight: bold; text-transform: uppercase; }
+        h1, h2, h3, h4 { margin-bottom: 10px; color: var(--text); }
+
+        /* Login */
+        #login-page {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #1a1a1a 0%, #800020 100%); padding: 20px;
+        }
+        .login-box {
+            background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 380px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3); text-align: center;
+        }
+
+        /* Inputs Modernos */
+        input, select, textarea {
+            width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px;
+            border: 1px solid #ddd; background-color: #f9f9f9; font-size: 1rem;
+            transition: var(--transition);
+        }
+        input:focus { background-color: var(--input-focus); border-color: var(--primary); outline: none; }
+
+        /* Botões */
+        button {
+            cursor: pointer; border: none; border-radius: 8px; 
+            padding: 12px; transition: var(--transition);
+        }
+        .btn-primary { background: var(--primary); color: white; width: 100%; }
+        .btn-pdf { background: #34495e; color: white; margin-top: 10px; width: 100%; }
+        .btn-delete { background: var(--error); color: white; padding: 5px 10px; font-size: 0.8rem; }
+
+        /* Navegação */
+        header {
+            background: white; padding: 15px; display: flex; justify-content: space-between;
+            align-items: center; position: sticky; top: 0; z-index: 99; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; height: 65px; background: white;
+            display: flex; justify-content: space-around; align-items: center;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 100;
+        }
+        .nav-item { color: var(--gray); text-align: center; font-size: 0.7rem; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { display: block; font-size: 24px; }
+
+        /* Conteúdo */
+        .container { padding: 20px; padding-bottom: 100px; max-width: 800px; margin: auto; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards */
+        .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-card { border-left: 5px solid var(--primary); }
+
+        /* Feedbacks */
+        .loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Badge Status */
+        .badge { padding: 4px 8px; border-radius: 5px; font-size: 0.7rem; color: white; }
+        .status-pendente { background: #f39c12; }
+        .status-viagem { background: #3498db; }
+        .status-concluida { background: #27ae60; }
+    </style>
+</head>
+<body id="app-body">
+
+    <!-- LOADER -->
+    <div id="loading" class="loader"><div class="spinner"></div></div>
+
+    <!-- TELA DE LOGIN -->
+    <section id="login-screen">
+        <div class="login-box">
+            <h1 class="bold-upper">**LOGIN**</h1>
+            <input type="email" id="login-email" placeholder="E-mail">
+            <div style="position: relative;">
+                <input type="password" id="login-pass" placeholder="Senha">
+                <span class="material-icons" style="position: absolute; right: 10px; top: 20px; color: #999;" onclick="togglePass()">visibility</span>
+            </div>
+            <button class="btn-primary bold-upper" onclick="doLogin()">**ENTRAR**</button>
+            <div style="margin-top: 15px;">
+                <a href="#" style="color: var(--primary); text-decoration: none;">Esqueci minha senha</a><br>
+                <a href="#" style="color: var(--gray); text-decoration: none; font-size: 0.8rem;">Criar nova conta</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- APP PRINCIPAL -->
+    <main id="main-app" style="display: none;">
+        <header>
+            <h2 id="view-title" class="bold-upper">**DASHBOARD**</h2>
+            <button onclick="toggleLang()" style="background:none; border: 1px solid #ddd; padding: 5px;" id="lang-btn">🇧🇷 PT</button>
+        </header>
+
+        <div class="container">
+            
+            <!-- DASHBOARD -->
+            <div id="tab-dashboard" class="tab-content active">
+                <div class="grid-2">
+                    <div class="card stat-card">
+                        <small class="bold-upper" data-i18n="viagens_ativas">**VIAGENS ATIVAS**</small>
+                        <h2 id="dash-viagens-count">0</h2>
+                        <p id="dash-viagens-soma">R$ 0,00</p>
+                    </div>
+                    <div class="card stat-card">
+                        <small class="bold-upper" data-i18n="receita_mes">**RECEITA NO MÊS**</small>
+                        <h2 id="dash-receita">R$ 0,00</h2>
+                    </div>
+                </div>
+                <h4 class="bold-upper" style="margin-top: 15px;" data-i18n="historico">**HISTÓRICO (30 DIAS)**</h4>
+                <div id="dash-historico-lista"></div>
+                <textarea class="card" id="dash-notas" rows="5" placeholder="Notas do dashboard" style="width: 100%"></textarea>
+                <button class="btn-pdf bold-upper" onclick="exportToPDF('Dashboard', 'dash-historico-lista')">**EXPORTAR PDF A4**</button>
+            </div>
+
+            <!-- EQUIPAMENTOS -->
+            <div id="tab-equipamentos" class="tab-content">
+                <div class="card">
+                    <h4 class="bold-upper">**CADASTRO DE EQUIPAMENTO**</h4>
+                    <select id="eq-tipo">
+                        <option value="Caminhão">Caminhão</option>
+                        <option value="Carreta">Carreta</option>
+                    </select>
+                    <input type="text" id="eq-marca" placeholder="Marca">
+                    <input type="number" id="eq-ano" placeholder="Ano">
+                    <input type="text" id="eq-modelo" placeholder="Modelo">
+                    <input type="text" id="eq-placa" placeholder="Placa">
+                    <input type="text" id="eq-vin" placeholder="VIN">
+                    <textarea id="eq-notas" rows="5" placeholder="Notas"></textarea>
+                    <button class="btn-primary bold-upper" onclick="saveEquipamento()">**SALVAR**</button>
+                </div>
+                <div id="lista-equipamentos"></div>
+            </div>
+
+            <!-- FROTA -->
+            <div id="tab-frota" class="tab-content">
+                <div class="card">
+                    <h4 class="bold-upper">**CADASTRO DE FROTA**</h4>
+                    <input type="text" id="fr-serial" readonly placeholder="FRT-0000">
+                    <select id="fr-caminhao"><option value="">Selecione Caminhão</option></select>
+                    <select id="fr-carreta"><option value="">Selecione Carreta</option></select>
+                    <textarea id="fr-notas" rows="5" placeholder="Notas"></textarea>
+                    <button class="btn-primary bold-upper" onclick="saveFrota()">**VINCULAR FROTA**</button>
+                </div>
+                <div id="lista-frota"></div>
+            </div>
+
+            <!-- VIAGENS -->
+            <div id="tab-viagens" class="tab-content">
+                <div class="card">
+                    <h4 class="bold-upper">**NOVA VIAGEM**</h4>
+                    <input type="text" id="v-origem" placeholder="Origem">
+                    <input type="datetime-local" id="v-coleta">
+                    <input type="text" id="v-destino" placeholder="Destino">
+                    <input type="datetime-local" id="v-entrega">
+                    <select id="v-status">
+                        <option value="Pendente">Pendente</option>
+                        <option value="Em Viagem">Em Viagem</option>
+                        <option value="Concluída">Concluída</option>
+                    </select>
+                    <div class="grid-2">
+                        <input type="number" id="v-valor" placeholder="Valor" oninput="calcViagem()">
+                        <input type="number" id="v-dist" placeholder="Distância (KM)" oninput="calcViagem()">
+                    </div>
+                    <input type="text" id="v-valorkm" placeholder="Valor por KM" readonly style="background:#eee">
+                    <textarea id="v-notas" rows="5" placeholder="Notas"></textarea>
+                    <button class="btn-primary bold-upper" onclick="saveViagem()">**CADASTRAR VIAGEM**</button>
+                </div>
+                <div id="lista-viagens"></div>
+            </div>
+
+            <!-- CLIENTES -->
+            <div id="tab-clientes" class="tab-content">
+                <div class="card">
+                    <h4 class="bold-upper">**CADASTRO DE CLIENTE**</h4>
+                    <input type="text" id="c-nome" placeholder="Nome / Razão Social">
+                    <input type="text" id="c-doc" placeholder="CPF / CNPJ">
+                    <div class="grid-2">
+                        <input type="tel" id="c-cel" placeholder="Celular">
+                        <input type="tel" id="c-tel" placeholder="Telefone">
+                    </div>
+                    <input type="email" id="c-email" placeholder="E-mail">
+                    <input type="text" id="c-contato" placeholder="Nome de Contato">
+                    <textarea id="c-notas" rows="5" placeholder="Notas"></textarea>
+                    <button class="btn-primary bold-upper" onclick="saveCliente()">**SALVAR CLIENTE**</button>
+                </div>
+                <div id="lista-clientes"></div>
+            </div>
+
+            <!-- CONFIGURAÇÕES -->
+            <div id="tab-config" class="tab-content">
+                <div class="card">
+                    <h4 class="bold-upper">**FONTE E IDIOMA**</h4>
+                    <label>Ajuste de Fonte: <span id="font-val">11</span>px</label>
+                    <input type="range" min="10" max="18" value="11" oninput="ajusteFonte(this.value)">
+                </div>
+                <div class="card">
+                    <h4 class="bold-upper">**DADOS DA EMPRESA**</h4>
+                    <input type="text" id="conf-emp" placeholder="Empresa">
+                    <input type="text" id="conf-cnpj" placeholder="CNPJ">
+                    <input type="text" id="conf-cpf" placeholder="CPF">
+                    <input type="text" id="conf-tel" placeholder="Telefone">
+                    <input type="text" id="conf-cel" placeholder="Celular">
+                    <input type="email" id="conf-email" placeholder="E-mail">
+                    <textarea id="conf-notas" rows="5" placeholder="Notas"></textarea>
+                    <button class="btn-primary bold-upper" onclick="saveEmpresa()">**SALVAR DADOS**</button>
+                    <button class="btn-pdf bold-upper" onclick="exportToPDF('Dados_Empresa', 'tab-config')">**EXPORTAR PDF A4**</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- NAV -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="showTab('dashboard')"><i class="material-icons">dashboard</i>DASH</div>
+            <div class="nav-item" onclick="showTab('viagens')"><i class="material-icons">local_shipping</i>VIAGEM</div>
+            <div class="nav-item" onclick="showTab('equipamentos')"><i class="material-icons">minor_crash</i>EQUIP</div>
+            <div class="nav-item" onclick="showTab('frota')"><i class="material-icons">inventory</i>FROTA</div>
+            <div class="nav-item" onclick="showTab('clientes')"><i class="material-icons">groups</i>CLI</div>
+            <div class="nav-item" onclick="showTab('config')"><i class="material-icons">settings</i>CONF</div>
+        </nav>
+    </main>
+
+    <script>
+        // BANCO DE DADOS LOCAL
+        let DB = {
+            lang: 'pt',
+            viagens: JSON.parse(localStorage.getItem('fret_v')) || [],
+            equipamentos: JSON.parse(localStorage.getItem('fret_e')) || [],
+            frota: JSON.parse(localStorage.getItem('fret_f')) || [],
+            clientes: JSON.parse(localStorage.getItem('fret_c')) || [],
+            empresa: JSON.parse(localStorage.getItem('fret_emp')) || {}
+        };
+
+        const i18n = {
+            pt: { viagens_ativas: "**VIAGENS ATIVAS**", receita_mes: "**RECEITA NO MÊS**", historico: "**HISTÓRICO (30 DIAS)**", km: "KM", valorkm: "Valor por KM" },
+            en: { viagens_ativas: "**ACTIVE TRIPS**", receita_mes: "**MONTHLY REVENUE**", historico: "**HISTORY (30 DAYS)**", km: "Miles", valorkm: "Value per Mile" }
+        };
+
+        // INICIALIZAÇÃO
+        function doLogin() {
+            const email = document.getElementById('login-email').value;
+            if(!email) return alert("Insira o e-mail");
+            document.getElementById('loading').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                initApp();
+            }, 1000);
+        }
+
+        function togglePass() {
+            let p = document.getElementById('login-pass');
+            p.type = p.type === 'password' ? 'text' : 'password';
+        }
+
+        function initApp() {
+            updateDashboard();
+            renderAll();
+            genSerialFrota();
+        }
+
+        function showTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById('tab-'+tab).classList.add('active');
+            event.currentTarget.classList.add('active');
+            document.getElementById('view-title').innerText = `**${tab.toUpperCase()}**`;
+        }
+
+        // --- CÁLCULOS ---
+        function calcViagem() {
+            const val = parseFloat(document.getElementById('v-valor').value) || 0;
+            const dist = parseFloat(document.getElementById('v-dist').value) || 0;
+            const res = dist > 0 ? (val / dist).toFixed(2) : 0;
+            document.getElementById('v-valorkm').value = DB.lang === 'pt' ? `R$ ${res}/KM` : `$ ${res}/Mile`;
+        }
+
+        // --- CRUD EQUIPAMENTOS ---
+        function saveEquipamento() {
+            const item = {
+                id: Date.now(),
+                tipo: document.getElementById('eq-tipo').value,
+                marca: document.getElementById('eq-marca').value,
+                modelo: document.getElementById('eq-modelo').value,
+                placa: document.getElementById('eq-placa').value,
+                vin: document.getElementById('eq-vin').value
+            };
+            DB.equipamentos.push(item);
+            localStorage.setItem('fret_e', JSON.stringify(DB.equipamentos));
+            renderEquipamentos();
+            alert("Equipamento salvo!");
+        }
+
+        function renderEquipamentos() {
+            const list = document.getElementById('lista-equipamentos');
+            const selectCam = document.getElementById('fr-caminhao');
+            const selectCar = document.getElementById('fr-carreta');
+            
+            list.innerHTML = "";
+            selectCam.innerHTML = '<option value="">Selecione Caminhão</option>';
+            selectCar.innerHTML = '<option value="">Selecione Carreta</option>';
+
+            DB.equipamentos.forEach(e => {
+                list.innerHTML += `<div class="card">
+                    <strong>${e.tipo} - ${e.modelo} (${e.placa})</strong>
+                    <button class="btn-delete" onclick="deleteItem('equipamentos','fret_e',${e.id})">Excluir</button>
+                </div>`;
+                
+                let opt = `<option value="${e.id}">${e.modelo} [${e.placa}]</option>`;
+                if(e.tipo === "Caminhão") selectCam.innerHTML += opt;
+                else selectCar.innerHTML += opt;
+            });
+        }
+
+        // --- CRUD FROTA ---
+        function genSerialFrota() {
+            const num = DB.frota.length + 1;
+            document.getElementById('fr-serial').value = `FRT-${num.toString().padStart(4, '0')}`;
+        }
+
+        function saveFrota() {
+            const item = {
+                id: Date.now(),
+                serial: document.getElementById('fr-serial').value,
+                cam: document.getElementById('fr-caminhao').value,
+                car: document.getElementById('fr-carreta').value
+            };
+            DB.frota.push(item);
+            localStorage.setItem('fret_f', JSON.stringify(DB.frota));
+            renderFrota();
+            genSerialFrota();
+        }
+
+        function renderFrota() {
+            const list = document.getElementById('lista-frota');
+            list.innerHTML = DB.frota.map(f => `
+                <div class="card">
+                    <strong>Conjunto: ${f.serial}</strong><br>
+                    <small>IDs: Cam ${f.cam} | Car ${f.car}</small>
+                </div>
+            `).join('');
+        }
+
+        // --- CRUD VIAGENS ---
+        function saveViagem() {
+            const v = {
+                id: Date.now(),
+                origem: document.getElementById('v-origem').value,
+                destino: document.getElementById('v-destino').value,
+                valor: parseFloat(document.getElementById('v-valor').value) || 0,
+                status: document.getElementById('v-status').value,
+                dataCad: new Date().toLocaleDateString(DB.lang === 'pt' ? 'pt-BR' : 'en-US')
+            };
+            DB.viagens.push(v);
+            localStorage.setItem('fret_v', JSON.stringify(DB.viagens));
+            updateDashboard();
+            renderViagens();
+            alert("Viagem registrada!");
+        }
+
+        function renderViagens() {
+            const list = document.getElementById('lista-viagens');
+            list.innerHTML = DB.viagens.slice().reverse().map(v => `
+                <div class="card">
+                    <span class="badge status-${v.status.toLowerCase().replace(" ","")}">**${v.status}**</span><br>
+                    <strong>${v.origem} ➔ ${v.destino}</strong><br>
+                    <small>Data: ${v.dataCad} | Valor: R$ ${v.valor}</small>
+                </div>
+            `).join('');
+        }
+
+        // --- CRUD CLIENTES ---
+        function saveCliente() {
+            const c = { id: Date.now(), nome: document.getElementById('c-nome').value, doc: document.getElementById('c-doc').value };
+            DB.clientes.push(c);
+            localStorage.setItem('fret_c', JSON.stringify(DB.clientes));
+            renderClientes();
+        }
+
+        function renderClientes() {
+            const list = document.getElementById('lista-clientes');
+            list.innerHTML = DB.clientes.map(c => `<div class="card"><strong>${c.nome}</strong><br><small>${c.doc}</small></div>`).join('');
+        }
+
+        // --- UTILITÁRIOS ---
+        function deleteItem(dbKey, localKey, id) {
+            DB[dbKey] = DB[dbKey].filter(x => x.id !== id);
+            localStorage.setItem(localKey, JSON.stringify(DB[dbKey]));
+            renderAll();
+        }
+
+        function renderAll() {
+            renderEquipamentos();
+            renderFrota();
+            renderViagens();
+            renderClientes();
+        }
+
+        function updateDashboard() {
+            const ativas = DB.viagens.filter(v => v.status !== 'Concluída');
+            const concluida = DB.viagens.filter(v => v.status === 'Concluída');
+            
+            document.getElementById('dash-viagens-count').innerText = ativas.length;
+            const somaAtivas = ativas.reduce((a, b) => a + b.valor, 0);
+            const somaReceita = concluida.reduce((a, b) => a + b.valor, 0);
+            
+            document.getElementById('dash-viagens-soma').innerText = `R$ ${somaAtivas.toLocaleString()}`;
+            document.getElementById('dash-receita').innerText = `R$ ${somaReceita.toLocaleString()}`;
+            
+            const hist = document.getElementById('dash-historico-lista');
+            hist.innerHTML = DB.viagens.slice(-5).map(v => `<div class="card"><strong>${v.status}:</strong> ${v.origem} / ${v.valor}</div>`).join('');
+        }
+
+        function toggleLang() {
+            DB.lang = DB.lang === 'pt' ? 'en' : 'pt';
+            document.getElementById('lang-btn').innerText = DB.lang === 'pt' ? '🇧🇷 PT' : '🇺🇸 EN';
+            // Tradução de Placeholders e Labels
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                el.innerText = i18n[DB.lang][el.getAttribute('data-i18n')];
+            });
+            updateDashboard();
+        }
+
+        function ajusteFonte(v) {
+            document.getElementById('app-body').style.fontSize = v + 'px';
+            document.getElementById('font-val').innerText = v;
+        }
+
+        function exportToPDF(titulo, elementId) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(16);
+            doc.text(`PRIME FRETE - ${titulo.toUpperCase()}`, 15, 15);
+            doc.setFontSize(10);
+            doc.text(`Data: ${new Date().toLocaleString()}`, 15, 22);
+            
+            let y = 35;
+            if(titulo === 'Dashboard') {
+                DB.viagens.forEach(v => {
+                    doc.text(`${v.dataCad} | ${v.origem} -> ${v.destino} | R$ ${v.valor} [${v.status}]`, 15, y);
+                    y += 10;
+                });
+            } else {
+                doc.text("Relatório Geral de Dados do Sistema", 15, y);
+            }
+            
+            doc.save(`relatorio_${titulo.toLowerCase()}.pdf`);
+        }
+    </script>
+</body>
+</html>
